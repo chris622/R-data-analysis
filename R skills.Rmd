@@ -1,0 +1,152 @@
+---
+title: "R data skills"
+author: "lmj"
+date: "2023-05-05"
+output: 
+  bookdown::gitbook:
+    split_by: none
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,collapse = TRUE)
+library(tidyverse)
+```
+
++ 📢本内容为**R语言数据分析**的一些小技巧，**不定期更新**
++ 🎮[gitbook版本](https://rpubs.com/Chris622/R-skills)
++ 💻[website版本]()
+
+# 目录
+
++ [Data transformation|数据转换](#transformation)
+  + [查看缺失值数目](#count-na)
+  + [查看数据中可以变成因子型的变量](#find-fct)
+  + [按条件给观测分组，并定义为新变量](#case-when)
+  + [将不常见因子合并为“其他”](#fct-lump)
+  + [用特定数据代替原始数据中的NA](#replace-na)
++ [Data tidying|数据整理](#tidy)
++ [Data visualization|数据可视化](#viz)
++ [Others|其他](#others)
+  + [将数据随机分为测试集和训练集](#sample-data)
+
+
+# Data transformation|数据转换 {#transformation}
+## 查看缺失值数目{#count-na}
++ `sum(is.na())`
++ `colSums(is.na())`
++ `rowSums(is.na())`
+```{r}
+X <- c(1,2,NA,4,5)
+Y <- c('a','','c','','e')
+Z <- c(NA,'B',NA,'D','E')
+df <- data.frame(X,Y,Z,row.names = c(1,2,3,4,5))
+df
+sum(is.na(X))
+sum(is.na(Z))
+colSums(is.na(df))
+rowSums(is.na(df))
+
+#is.na()还可以替换成其他条件判断，如
+sum(Y=='')
+```
+
+
+## 查看数据中可以变成因子型的变量{#find-fct}
++ 查看数据唯一值的数目，数目少的说明为factor因子变量
++ `unique()` 提取唯一值
++ `length()` 计算向量长度
++ `map_dbl()` 对每个列进行计算，并返回double向量
+```{r}
+#以mtcars为例
+glimpse(mtcars)
+map_dbl(mtcars,~length(unique(.)))
+#cyl, vs, am, gear, carb 唯一值数目少，说明可以转换为因子
+
+#采用for循环进行转换
+cols <- c('cyl', 'vs', 'am', 'gear', 'carb' )
+for (i in cols){
+  mtcars[,i] <- as.factor(mtcars[,i])
+}
+#查看转换后的数据
+glimpse(mtcars)
+```
+## 按条件给观测分组，并定义为新变量{#case-when}
++ `case_when()`按条件分组
++ `mutate()`定义新变量
+```{r}
+# 以starwars数据为例
+head(starwars)
+# 按照身高height，体重mass，种类species给人物分类
+starwars %>%
+  select(name:mass, gender, species) %>%
+  mutate(
+    type = case_when(
+      height > 200 | mass > 200 ~ "large",#大型物种
+      species == "Droid" ~ "robot",#机器人
+      .default = "other"#其他
+    )
+  )
+
+```
+
+
+
+
+## 将不常见因子合并为“其他”{#fct-lump}
++ fct_lump_min():合并出现次数少于min的级别。
++ fct_lump_prop():将频率少于(或等于)prop的级别合并。
++ fct_lump_n():保留n个最频繁的(如果n<0，合并-n个最不频繁的)
++ fct_lump_lowfreq()将频率最低的级别集中在一起，并确保“other”仍然是最小的级别。
+```{r}
+x <- factor(rep(LETTERS[1:9], times = c(40, 10, 5, 27, 1, 1, 1, 1, 1)))
+x %>% table()
+#保留3个最频繁的
+x %>%
+  fct_lump_n(3) %>%
+  table()
+# 保留频率>0.10的
+x %>%
+  fct_lump_prop(0.10) %>%
+  table()
+# 保留频次>=5的
+x %>%
+  fct_lump_min(5) %>%
+  table()
+# 将频率最低的级别集中在一起，并确保“other”仍然是最小的级别。
+x %>%
+  fct_lump_lowfreq() %>%
+  table()
+
+# 设置权重
+x <- factor(letters[rpois(100, 5)])
+x
+table(x)
+w <- c(rep(2, 50), rep(1, 50))
+fct_lump_n(x, n = 5, w = w)
+
+```
+
+
+## 用特定数据代替原始数据中的NA{#replace-na}
++ `replace_na()`
+```{r}
+# 替换成unknown
+df <- tibble(x = c(1, 2, NA), y = c("a", NA, "b"))
+df %>% replace_na(list(x = 0, y = "unknown"))
+# 替换成平均值
+df <- tibble(ID = c(1:6), age = c(20,24,NA,23,25,27))
+df %>% replace_na(list(age=mean(df$age,na.rm = T)))
+```
+
+# Data tidying|数据整理 {#tidy}
+
+# Data visualization|数据可视化 {#viz}
+# Others|其他{#others}
+## 将数据随机分为测试集和训练集{#sample-data}
+```{r eval=FALSE}
+set.seed(123)# Set a random seed
+ind<-sample(1:dim(data)[1],500) # 取样500当训练集，剩下测试
+train<-data[ind,] # The train set of the model
+test<-data[-ind,] # The test set of the model
+```
+
